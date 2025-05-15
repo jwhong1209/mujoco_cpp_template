@@ -9,14 +9,15 @@ RUN apt-get update && apt-get install -y \
     build-essential cmake git wget unzip \
     libgl1-mesa-glx libglfw3 libglfw3-dev libglew-dev \
     libxrandr-dev libxinerama-dev libxcursor-dev \
+    libxi-dev \
     libosmesa6-dev libegl1-mesa-dev libglvnd-dev \
     libeigen3-dev pkg-config \
     vim
-
+    
 # install MuJoCo (ver 3.3.3)
-ENV MUJOCO_VERSION=3.3.3
+# ENV MUJOCO_VERSION=3.3.3
 WORKDIR /root
-RUN git clone --branch v${MUJOCO_VERSION} https://github.com/deepmind/mujoco.git && \
+RUN git clone https://github.com/google-deepmind/mujoco.git && \
     cd mujoco && \
     mkdir -p build && cd build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/mujoco && \
