@@ -523,7 +523,9 @@ int main(int argc, char** argv) {
                                      &opt, &pert, /* is_passive = */ false);
 
   // const char* filename = nullptr;
-  const char* filename = "../assets/model/scene.xml";
+  std::string root = PROJECT_ROOT_DIR;
+  std::string model_path = root + "/assets/model/scene.xml";
+  const char *filename = model_path.c_str();
   if (argc > 1) {
     filename = argv[1];
   }
