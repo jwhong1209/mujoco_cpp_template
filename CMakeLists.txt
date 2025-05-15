@@ -11,6 +11,9 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
 endif()
 
+# set repo's absolute directory
+add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
+
 # set MuJoCo PATH defined in ~/.bashrc
 set(MUJOCO_DIR $ENV{MUJOCO_PATH})
 link_directories(${MUJOCO_DIR}/lib)
