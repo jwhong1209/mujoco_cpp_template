@@ -27,13 +27,16 @@
 #include <string>
 #include <thread>
 
+#include <eigen3/Eigen/Dense>
+
 #include "array_safety.h"
 #include "glfw_adapter.h"
 #include "simulate.h"
 
 #define MUJOCO_PLUGIN_DIR "mujoco_plugin"
 
-extern "C" {
+extern "C"
+{
 #if defined(_WIN32) || defined(__CYGWIN__)
 #include <windows.h>
 #else
@@ -45,51 +48,56 @@ extern "C" {
 #endif
 }
 
-namespace {
+namespace
+{
 namespace mj = ::mujoco;
 namespace mju = ::mujoco::sample_util;
 
 // constants
-const double syncMisalign =
-    0.1;  // maximum mis-alignment before re-sync (simulation seconds)
-const double simRefreshFraction =
-    0.7;                        // fraction of refresh available for simulation
-const int kErrorLength = 1024;  // load error string length
+const double syncMisalign = 0.1;        // maximum mis-alignment before re-sync (simulation seconds)
+const double simRefreshFraction = 0.7;  // fraction of refresh available for simulation
+const int kErrorLength = 1024;          // load error string length
 
 // model and data
-mjModel* m = nullptr;
-mjData* d = nullptr;
+mjModel * m = nullptr;
+mjData * d = nullptr;
 
 using Seconds = std::chrono::duration<double>;
 
-//---------------------------------------- plugin handling
-//-----------------------------------------
+//---------------------------------------- plugin handling -----------------------------------------
 
 // return the path to the directory containing the current executable
 // used to determine the location of auto-loaded plugin libraries
-std::string getExecutableDir() {
+std::string getExecutableDir()
+{
 #if defined(_WIN32) || defined(__CYGWIN__)
   constexpr char kPathSep = '\\';
   std::string realpath = [&]() -> std::string {
     std::unique_ptr<char[]> realpath(nullptr);
     DWORD buf_size = 128;
     bool success = false;
-    while (!success) {
+    while (!success)
+    {
       realpath.reset(new (std::nothrow) char[buf_size]);
-      if (!realpath) {
+      if (!realpath)
+      {
         std::cerr << "cannot allocate memory to store executable path\n";
         return "";
       }
 
       DWORD written = GetModuleFileNameA(nullptr, realpath.get(), buf_size);
-      if (written < buf_size) {
+      if (written < buf_size)
+      {
         success = true;
-      } else if (written == buf_size) {
+      }
+      else if (written == buf_size)
+      {
         // realpath is too small, grow and retry
         buf_size *= 2;
-      } else {
-        std::cerr << "failed to retrieve executable path: " << GetLastError()
-                  << "\n";
+      }
+      else
+      {
+        std::cerr << "failed to retrieve executable path: " << GetLastError() << "\n";
         return "";
       }
     }
@@ -103,43 +111,52 @@ std::string getExecutableDir() {
     std::uint32_t buf_size = 0;
     _NSGetExecutablePath(nullptr, &buf_size);
     buf.reset(new char[buf_size]);
-    if (!buf) {
+    if (!buf)
+    {
       std::cerr << "cannot allocate memory to store executable path\n";
       return "";
     }
-    if (_NSGetExecutablePath(buf.get(), &buf_size)) {
+    if (_NSGetExecutablePath(buf.get(), &buf_size))
+    {
       std::cerr << "unexpected error from _NSGetExecutablePath\n";
     }
   }
-  const char* path = buf.get();
+  const char * path = buf.get();
 #else
-  const char* path = "/proc/self/exe";
+  const char * path = "/proc/self/exe";
 #endif
   std::string realpath = [&]() -> std::string {
     std::unique_ptr<char[]> realpath(nullptr);
     std::uint32_t buf_size = 128;
     bool success = false;
-    while (!success) {
+    while (!success)
+    {
       realpath.reset(new (std::nothrow) char[buf_size]);
-      if (!realpath) {
+      if (!realpath)
+      {
         std::cerr << "cannot allocate memory to store executable path\n";
         return "";
       }
 
       std::size_t written = readlink(path, realpath.get(), buf_size);
-      if (written < buf_size) {
+      if (written < buf_size)
+      {
         realpath.get()[written] = '\0';
         success = true;
-      } else if (written == -1) {
-        if (errno == EINVAL) {
+      }
+      else if (written == -1)
+      {
+        if (errno == EINVAL)
+        {
           // path is already not a symlink, just use it
           return path;
         }
 
-        std::cerr << "error while resolving executable path: "
-                  << strerror(errno) << '\n';
+        std::cerr << "error while resolving executable path: " << strerror(errno) << '\n';
         return "";
-      } else {
+      }
+      else
+      {
         // realpath is too small, grow and retry
         buf_size *= 2;
       }
@@ -148,12 +165,15 @@ std::string getExecutableDir() {
   }();
 #endif
 
-  if (realpath.empty()) {
+  if (realpath.empty())
+  {
     return "";
   }
 
-  for (std::size_t i = realpath.size() - 1; i > 0; --i) {
-    if (realpath.c_str()[i] == kPathSep) {
+  for (std::size_t i = realpath.size() - 1; i > 0; --i)
+  {
+    if (realpath.c_str()[i] == kPathSep)
+    {
       return realpath.substr(0, i);
     }
   }
@@ -163,12 +183,15 @@ std::string getExecutableDir() {
 }
 
 // scan for libraries in the plugin directory to load additional plugins
-void scanPluginLibraries() {
+void scanPluginLibraries()
+{
   // check and print plugins that are linked directly into the executable
   int nplugin = mjp_pluginCount();
-  if (nplugin) {
+  if (nplugin)
+  {
     std::printf("Built-in plugins:\n");
-    for (int i = 0; i < nplugin; ++i) {
+    for (int i = 0; i < nplugin; ++i)
+    {
       std::printf("    %s\n", mjp_getPluginAtSlot(i)->name);
     }
   }
@@ -184,27 +207,32 @@ void scanPluginLibraries() {
   // ${EXECDIR} is the directory containing the simulate binary itself
   // MUJOCO_PLUGIN_DIR is the MUJOCO_PLUGIN_DIR preprocessor macro
   const std::string executable_dir = getExecutableDir();
-  if (executable_dir.empty()) {
+  if (executable_dir.empty())
+  {
     return;
   }
 
   const std::string plugin_dir = getExecutableDir() + sep + MUJOCO_PLUGIN_DIR;
   mj_loadAllPluginLibraries(
-      plugin_dir.c_str(), +[](const char* filename, int first, int count) {
-        std::printf("Plugins registered by library '%s':\n", filename);
-        for (int i = first; i < first + count; ++i) {
-          std::printf("    %s\n", mjp_getPluginAtSlot(i)->name);
-        }
-      });
+    plugin_dir.c_str(), +[](const char * filename, int first, int count) {
+      std::printf("Plugins registered by library '%s':\n", filename);
+      for (int i = first; i < first + count; ++i)
+      {
+        std::printf("    %s\n", mjp_getPluginAtSlot(i)->name);
+      }
+    });
 }
 
-//------------------------------------------- simulation
-//-------------------------------------------
+//------------------------------------------- simulation -------------------------------------------
 
-const char* Diverged(int disableflags, const mjData* d) {
-  if (disableflags & mjDSBL_AUTORESET) {
-    for (mjtWarning w : {mjWARN_BADQACC, mjWARN_BADQVEL, mjWARN_BADQPOS}) {
-      if (d->warning[w].number > 0) {
+const char * Diverged(int disableflags, const mjData * d)
+{
+  if (disableflags & mjDSBL_AUTORESET)
+  {
+    for (mjtWarning w : { mjWARN_BADQACC, mjWARN_BADQVEL, mjWARN_BADQPOS })
+    {
+      if (d->warning[w].number > 0)
+      {
         return mju_warningText(w, d->warning[w].lastinfo);
       }
     }
@@ -212,35 +240,42 @@ const char* Diverged(int disableflags, const mjData* d) {
   return nullptr;
 }
 
-mjModel* LoadModel(const char* file, mj::Simulate& sim) {
+mjModel * LoadModel(const char * file, mj::Simulate & sim)
+{
   // this copy is needed so that the mju::strlen call below compiles
   char filename[mj::Simulate::kMaxFilenameLength];
   mju::strcpy_arr(filename, file);
 
   // make sure filename is not empty
-  if (!filename[0]) {
+  if (!filename[0])
+  {
     return nullptr;
   }
 
   // load and compile
   char loadError[kErrorLength] = "";
-  mjModel* mnew = 0;
+  mjModel * mnew = 0;
   auto load_start = mj::Simulate::Clock::now();
   if (mju::strlen_arr(filename) > 4 &&
-      !std::strncmp(
-          filename + mju::strlen_arr(filename) - 4, ".mjb",
-          mju::sizeof_arr(filename) - mju::strlen_arr(filename) + 4)) {
+      !std::strncmp(filename + mju::strlen_arr(filename) - 4, ".mjb",
+                    mju::sizeof_arr(filename) - mju::strlen_arr(filename) + 4))
+  {
     mnew = mj_loadModel(filename, nullptr);
-    if (!mnew) {
+    if (!mnew)
+    {
       mju::strcpy_arr(loadError, "could not load binary model");
     }
-  } else {
+  }
+  else
+  {
     mnew = mj_loadXML(filename, nullptr, loadError, kErrorLength);
 
     // remove trailing newline character from loadError
-    if (loadError[0]) {
+    if (loadError[0])
+    {
       int error_length = mju::strlen_arr(loadError);
-      if (loadError[error_length - 1] == '\n') {
+      if (loadError[error_length - 1] == '\n')
+      {
         loadError[error_length - 1] = '\0';
       }
     }
@@ -248,22 +283,24 @@ mjModel* LoadModel(const char* file, mj::Simulate& sim) {
   auto load_interval = mj::Simulate::Clock::now() - load_start;
   double load_seconds = Seconds(load_interval).count();
 
-  if (!mnew) {
+  if (!mnew)
+  {
     std::printf("%s\n", loadError);
     mju::strcpy_arr(sim.load_error, loadError);
     return nullptr;
   }
 
   // compiler warning: print and pause
-  if (loadError[0]) {
+  if (loadError[0])
+  {
     // mj_forward() below will print the warning message
-    std::printf("Model compiled, but simulation warning (paused):\n  %s\n",
-                loadError);
+    std::printf("Model compiled, but simulation warning (paused):\n  %s\n", loadError);
     sim.run = 0;
   }
 
   // if no error and load took more than 1/4 seconds, report load time
-  else if (load_seconds > 0.25) {
+  else if (load_seconds > 0.25)
+  {
     mju::sprintf_arr(loadError, "Model loaded in %.2g seconds", load_seconds);
   }
 
@@ -273,21 +310,26 @@ mjModel* LoadModel(const char* file, mj::Simulate& sim) {
 }
 
 // simulate in background thread (while rendering in main thread)
-void PhysicsLoop(mj::Simulate& sim) {
+void PhysicsLoop(mj::Simulate & sim)
+{
   // cpu-sim syncronization point
   std::chrono::time_point<mj::Simulate::Clock> syncCPU;
   mjtNum syncSim = 0;
 
   // run until asked to exit
-  while (!sim.exitrequest.load()) {
-    if (sim.droploadrequest.load()) {
+  while (!sim.exitrequest.load())
+  {
+    if (sim.droploadrequest.load())
+    {
       sim.LoadMessage(sim.dropfilename);
-      mjModel* mnew = LoadModel(sim.dropfilename, sim);
+      mjModel * mnew = LoadModel(sim.dropfilename, sim);
       sim.droploadrequest.store(false);
 
-      mjData* dnew = nullptr;
-      if (mnew) dnew = mj_makeData(mnew);
-      if (dnew) {
+      mjData * dnew = nullptr;
+      if (mnew)
+        dnew = mj_makeData(mnew);
+      if (dnew)
+      {
         sim.Load(mnew, dnew, sim.dropfilename);
 
         // lock the sim mutex
@@ -299,19 +341,23 @@ void PhysicsLoop(mj::Simulate& sim) {
         m = mnew;
         d = dnew;
         mj_forward(m, d);
-
-      } else {
+      }
+      else
+      {
         sim.LoadMessageClear();
       }
     }
 
-    if (sim.uiloadrequest.load()) {
+    if (sim.uiloadrequest.load())
+    {
       sim.uiloadrequest.fetch_sub(1);
       sim.LoadMessage(sim.filename);
-      mjModel* mnew = LoadModel(sim.filename, sim);
-      mjData* dnew = nullptr;
-      if (mnew) dnew = mj_makeData(mnew);
-      if (dnew) {
+      mjModel * mnew = LoadModel(sim.filename, sim);
+      mjData * dnew = nullptr;
+      if (mnew)
+        dnew = mj_makeData(mnew);
+      if (dnew)
+      {
         sim.Load(mnew, dnew, sim.filename);
 
         // lock the sim mutex
@@ -323,8 +369,9 @@ void PhysicsLoop(mj::Simulate& sim) {
         m = mnew;
         d = dnew;
         mj_forward(m, d);
-
-      } else {
+      }
+      else
+      {
         sim.LoadMessageClear();
       }
     }
@@ -332,9 +379,12 @@ void PhysicsLoop(mj::Simulate& sim) {
     // sleep for 1 ms or yield, to let main thread run
     //  yield results in busy wait - which has better timing but kills battery
     //  life
-    if (sim.run && sim.busywait) {
+    if (sim.run && sim.busywait)
+    {
       std::this_thread::yield();
-    } else {
+    }
+    else
+    {
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
@@ -343,9 +393,11 @@ void PhysicsLoop(mj::Simulate& sim) {
       const std::unique_lock<std::recursive_mutex> lock(sim.mtx);
 
       // run only if model is present
-      if (m) {
+      if (m)
+      {
         // running
-        if (sim.run) {
+        if (sim.run)
+        {
           bool stepped = false;
 
           // record cpu time at start of iteration
@@ -360,13 +412,13 @@ void PhysicsLoop(mj::Simulate& sim) {
 
           // misalignment condition: distance from target sim time is bigger
           // than syncmisalign
-          bool misaligned = std::abs(Seconds(elapsedCPU).count() / slowdown -
-                                     elapsedSim) > syncMisalign;
+          bool misaligned =
+            std::abs(Seconds(elapsedCPU).count() / slowdown - elapsedSim) > syncMisalign;
 
           // out-of-sync (for any reason): reset sync times, step
-          if (elapsedSim < 0 || elapsedCPU.count() < 0 ||
-              syncCPU.time_since_epoch().count() == 0 || misaligned ||
-              sim.speed_changed) {
+          if (elapsedSim < 0 || elapsedCPU.count() < 0 || syncCPU.time_since_epoch().count() == 0 ||
+              misaligned || sim.speed_changed)
+          {
             // re-sync
             syncCPU = startCPU;
             syncSim = d->time;
@@ -374,32 +426,35 @@ void PhysicsLoop(mj::Simulate& sim) {
 
             // run single step, let next iteration deal with timing
             mj_step(m, d);
-            const char* message = Diverged(m->opt.disableflags, d);
-            if (message) {
+            const char * message = Diverged(m->opt.disableflags, d);
+            if (message)
+            {
               sim.run = 0;
               mju::strcpy_arr(sim.load_error, message);
-            } else {
+            }
+            else
+            {
               stepped = true;
             }
           }
 
           // in-sync: step until ahead of cpu
-          else {
+          else
+          {
             bool measured = false;
             mjtNum prevSim = d->time;
 
             double refreshTime = simRefreshFraction / sim.refresh_rate;
 
             // step while sim lags behind cpu and within refreshTime
-            while (Seconds((d->time - syncSim) * slowdown) <
-                       mj::Simulate::Clock::now() - syncCPU &&
-                   mj::Simulate::Clock::now() - startCPU <
-                       Seconds(refreshTime)) {
+            while (Seconds((d->time - syncSim) * slowdown) < mj::Simulate::Clock::now() - syncCPU &&
+                   mj::Simulate::Clock::now() - startCPU < Seconds(refreshTime))
+            {
               // measure slowdown before first step
-              if (!measured && elapsedSim) {
+              if (!measured && elapsedSim)
+              {
                 sim.measured_slowdown =
-                    std::chrono::duration<double>(elapsedCPU).count() /
-                    elapsedSim;
+                  std::chrono::duration<double>(elapsedCPU).count() / elapsedSim;
                 measured = true;
               }
 
@@ -408,29 +463,35 @@ void PhysicsLoop(mj::Simulate& sim) {
 
               // call mj_step
               mj_step(m, d);
-              const char* message = Diverged(m->opt.disableflags, d);
-              if (message) {
+              const char * message = Diverged(m->opt.disableflags, d);
+              if (message)
+              {
                 sim.run = 0;
                 mju::strcpy_arr(sim.load_error, message);
-              } else {
+              }
+              else
+              {
                 stepped = true;
               }
 
               // break if reset
-              if (d->time < prevSim) {
+              if (d->time < prevSim)
+              {
                 break;
               }
             }
           }
 
           // save current state to history buffer
-          if (stepped) {
+          if (stepped)
+          {
             sim.AddToHistory();
           }
         }
 
         // paused
-        else {
+        else
+        {
           // run mj_forward, to update rendering and joint sliders
           mj_forward(m, d);
           sim.speed_changed = true;
@@ -441,29 +502,33 @@ void PhysicsLoop(mj::Simulate& sim) {
 }
 }  // namespace
 
-//-------------------------------------- physics_thread
-//--------------------------------------------
+//-------------------------------------- physics_thread --------------------------------------------
 
-void PhysicsThread(mj::Simulate* sim, const char* filename) {
+void PhysicsThread(mj::Simulate * sim, const char * filename)
+{
   // request loadmodel if file given (otherwise drag-and-drop)
-  if (filename != nullptr) {
+  if (filename != nullptr)
+  {
     sim->LoadMessage(filename);
     m = LoadModel(filename, *sim);
-    if (m) {
+    if (m)
+    {
       // lock the sim mutex
       const std::unique_lock<std::recursive_mutex> lock(sim->mtx);
 
       d = mj_makeData(m);
     }
-    if (d) {
+    if (d)
+    {
       sim->Load(m, d, filename);
 
       // lock the sim mutex
       const std::unique_lock<std::recursive_mutex> lock(sim->mtx);
 
       mj_forward(m, d);
-
-    } else {
+    }
+    else
+    {
       sim->LoadMessageClear();
     }
   }
@@ -475,25 +540,26 @@ void PhysicsThread(mj::Simulate* sim, const char* filename) {
   mj_deleteModel(m);
 }
 
-//------------------------------------------ main
-//--------------------------------------------------
+//------------------------------------------ main --------------------------------------------------
 
 // machinery for replacing command line error by a macOS dialog box when running
 // under Rosetta
 #if defined(__APPLE__) && defined(__AVX__)
-extern void DisplayErrorDialogBox(const char* title, const char* msg);
-static const char* rosetta_error_msg = nullptr;
-__attribute__((used, visibility("default"))) extern "C" void _mj_rosettaError(
-    const char* msg) {
+extern void DisplayErrorDialogBox(const char * title, const char * msg);
+static const char * rosetta_error_msg = nullptr;
+__attribute__((used, visibility("default"))) extern "C" void _mj_rosettaError(const char * msg)
+{
   rosetta_error_msg = msg;
 }
 #endif
 
 // run event loop
-int main(int argc, char** argv) {
+int main(int argc, char ** argv)
+{
   // display an error if running on macOS under Rosetta 2
 #if defined(__APPLE__) && defined(__AVX__)
-  if (rosetta_error_msg) {
+  if (rosetta_error_msg)
+  {
     DisplayErrorDialogBox("Rosetta 2 is not supported", rosetta_error_msg);
     std::exit(1);
   }
@@ -501,7 +567,8 @@ int main(int argc, char** argv) {
 
   // print version, check compatibility
   std::printf("MuJoCo version %s\n", mj_versionString());
-  if (mjVERSION_HEADER != mj_version()) {
+  if (mjVERSION_HEADER != mj_version())
+  {
     mju_error("Headers and library have different versions");
   }
 
@@ -518,13 +585,15 @@ int main(int argc, char** argv) {
   mjv_defaultPerturb(&pert);
 
   // simulate object encapsulates the UI
-  auto sim =
-      std::make_unique<mj::Simulate>(std::make_unique<mj::GlfwAdapter>(), &cam,
-                                     &opt, &pert, /* is_passive = */ false);
+  auto sim = std::make_unique<mj::Simulate>(std::make_unique<mj::GlfwAdapter>(), &cam, &opt, &pert,
+                                            /* is_passive = */ false);
 
   // const char* filename = nullptr;
-  const char* filename = "../assets/model/scene.xml";
-  if (argc > 1) {
+  std::string root = PROJECT_ROOT_DIR;
+  std::string model_path = root + "/assets/model/scene.xml";
+  const char * filename = model_path.c_str();
+  if (argc > 1)
+  {
     filename = argv[1];
   }
 
