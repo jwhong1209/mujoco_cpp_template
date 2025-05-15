@@ -59,8 +59,10 @@ $ sudo apt install libeigen3-dev # Then, eigen headers are installed at /usr/inc
 - Editor like Visual Studio Code (VSCode) or Cursor AI is recommended
 
 ## Use Docker
+```
+docker build -t mujoco-cpp-template .
+docker run -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix mujoco-cpp-template
+```
 
 # Build & Run
-## Local
-
-## Using Docker
+Whether you 
