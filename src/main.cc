@@ -20,6 +20,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <eigen3/Eigen/Dense>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -525,7 +526,7 @@ int main(int argc, char** argv) {
   // const char* filename = nullptr;
   std::string root = PROJECT_ROOT_DIR;
   std::string model_path = root + "/assets/model/scene.xml";
-  const char *filename = model_path.c_str();
+  const char* filename = model_path.c_str();
   if (argc > 1) {
     filename = argv[1];
   }
