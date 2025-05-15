@@ -1,2 +1,5 @@
 .vscode/
 build/
+*.log
+*.swp
+*.swo
