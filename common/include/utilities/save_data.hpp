@@ -1,7 +1,7 @@
 #ifndef SAVE_DATA_HPP_
 #define SAVE_DATA_HPP_
 
-//* C++ standard libraries *//
+/* C++ STL */
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -9,6 +9,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include <eigen3/Eigen/Dense>
 
 template <typename T>
 class SaveData
@@ -37,7 +39,7 @@ public:
 
   void write_data(bool is_last_data = false);
   void save_scalar(const T & val, bool is_last_data = false);
-  void save_vector(const VecX<T> & vec, bool is_last_data = false);
+  void save_vector(const Eigen::Matrix<T, Eigen::Dynamic, 1> & vec, bool is_last_data = false);
 };
 
 #endif  // SAVE_DATA_HPP_
