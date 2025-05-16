@@ -93,3 +93,14 @@ $ ./mujoco_simulation # or you can change the name of executable in CMakeLists.t
 ```
 
 Now you are ready for writing your own program for MuJoCo simulation :)
+
+# Troubleshooting
+If you encountered the following issue while `docker build`, this is mostly due to network problem.
+```bash
+error: RPC failed; curl 56 GnuTLS recv error (-9): Error decoding the received TLS packet.
+fatal: the remote end hung up unexpectedly
+fatal: early EOF
+fatal: index-pack failed
+```
+
+Check your network and try `docker build` again.
