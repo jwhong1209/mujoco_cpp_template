@@ -49,6 +49,16 @@ You have two options for install & build this repository.
   $ sudo apt install libeigen3-dev # Then, eigen headers are installed at /usr/include/eigen3
   ```
 - Editor like **Visual Studio Code (VSCode)** or **Cursor AI** is recommended
+  - Recommended Extensions
+    - Better Comments
+    - C/C++, C/C++ Extension Pack
+    - CMake, CMake Tools
+    - Clang-Format
+    - Git Graph
+    - Markdown All in One
+    - Material Icon Theme
+    - Rainbow Brackets
+    - XML Tools
 
 ## Using Docker
 Whether you are programming in Linux (e.g. Ubuntu) or WSL2, you can install all the prerequisites
