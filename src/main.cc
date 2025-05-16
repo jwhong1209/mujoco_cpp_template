@@ -603,6 +603,7 @@ int main(int argc, char ** argv)
 
   // start physics thread
   std::thread physicsthreadhandle(&PhysicsThread, sim.get(), filename);
+  // TODO: possibly thread for data logging would be required
 
   // start simulation UI loop (blocking call)
   sim->RenderLoop();

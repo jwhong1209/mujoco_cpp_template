@@ -20,7 +20,7 @@ private:
 
   Eigen::Matrix<T, 2, 1> p_;  // Cartesian position
   Eigen::Matrix<T, 2, 1> v_;  // Cartesian velocity
-  Eigen::Matrix<T, 2, 1> a_;  // Cartesian acceleration
+  // Eigen::Matrix<T, 2, 1> a_;  // Cartesian acceleration
 
   Eigen::Matrix<T, 2, 2> M_;
   Eigen::Matrix<T, 2, 2> C_;
@@ -28,40 +28,29 @@ private:
   Eigen::Matrix<T, 2, 1> tau_g_;
 
   Eigen::Matrix<T, 2, 2> R_;  // rotation matrix
-  Eigen::Matrix<T, 2, 2> J_, dJ_;
+  Eigen::Matrix<T, 2, 2> J_;  // Jacobian matrix
 
 public:
-  DoublePendulumModel(const T & l1, const T & l2, const T & d1, const T & d2,  //
-                      const T & m1, const T & m2, const T & I1, const T & I2);
+  DoublePendulumModel(const T & l1, const T & l2,   //
+                      const T & d1, const T & d2,   //
+                      const T & m1, const T & m2,   //
+                      const T & I1, const T & I2);  //
 
-  void set_joint_states(const Eigen::Matrix<T, 2, 1> & q, const Eigen::Matrix<T, 2, 1> & dq);
-  void compute_dynamics();
+  //* ----- SETTERS --------------------------------------------------------------------------------
+  void setJointStates(const Eigen::Matrix<T, 2, 1> & q, const Eigen::Matrix<T, 2, 1> & dq);
 
-  Eigen::Matrix<T, 2, 1> get_end_effector_position();
+  //* ----- GETTERS --------------------------------------------------------------------------------
+  /* Kinematics */
+  Eigen::Matrix<T, 2, 1> position();
+  Eigen::Matrix<T, 2, 2> orientatoin();
+  Eigen::Matrix<T, 2, 2> jacobian();
 
-  // Eigen::Matrix<T, 2, 2>  get_rotation_matrix();
-  Eigen::Matrix<T, 2, 2> get_jacobian();
-  // Eigen::Matrix<T, 2, 2>  get_jacobian_derivative();
+  /* Dynamics */
+  Eigen::Matrix<T, 2, 2> inertia();
+  Eigen::Matrix<T, 2, 1> coriolis();
+  Eigen::Matrix<T, 2, 1> gravity();
 
-  Eigen::Matrix<T, 2, 2> get_inertia_matrix()
-  {
-    return M_;
-  }
-
-  Eigen::Matrix<T, 2, 2> get_coriolis_matrix()
-  {
-    return C_;
-  }
-
-  Eigen::Matrix<T, 2, 1> get_coriolis_torque()
-  {
-    return tau_c_;
-  }
-
-  Eigen::Matrix<T, 2, 1> get_gravity_torque()
-  {
-    return tau_g_;
-  }
+  //* ----- PRINTER --------------------------------------------------------------------------------
 };
 
 #endif  // DOUBLE_PENDULUM_MODEL_HPP_
