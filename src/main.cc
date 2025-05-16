@@ -592,6 +592,7 @@ int main(int argc, char ** argv)
   auto sim = std::make_unique<mj::Simulate>(std::make_unique<mj::GlfwAdapter>(), &cam, &opt, &pert,
                                             /* is_passive = */ false);
 
+  //*
   // const char* filename = nullptr;
   std::string root = PROJECT_ROOT_DIR;
   std::string model_path = root + "/assets/model/scene.xml";
