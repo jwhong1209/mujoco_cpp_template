@@ -12,32 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/* MuJoCo libraries */
 #include <mujoco/mujoco.h>
-
-#include <sys/errno.h>
-#include <unistd.h>
-#include <cerrno>
-#include <chrono>
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
-#include <memory>
-#include <mutex>
-#include <new>
-#include <string>
-#include <thread>
-
-/* Dependencies */
-#include <eigen3/Eigen/Dense>
-
-/* Custom libraries */
-#include "DoublePendulumModel.hpp"
 
 #include "array_safety.h"
 #include "glfw_adapter.h"
 #include "simulate.h"
+
+/* C++ STL */
+#include <chrono>
+#include <iostream>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+
+/* Custom libraries */
+#include "DoublePendulumModel.hpp"
 
 namespace
 {
