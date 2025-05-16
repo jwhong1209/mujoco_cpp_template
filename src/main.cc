@@ -14,6 +14,8 @@
 
 #include <mujoco/mujoco.h>
 
+#include <sys/errno.h>
+#include <unistd.h>
 #include <cerrno>
 #include <chrono>
 #include <cstdint>
@@ -36,21 +38,6 @@
 #include "array_safety.h"
 #include "glfw_adapter.h"
 #include "simulate.h"
-
-#define MUJOCO_PLUGIN_DIR "mujoco_plugin"
-
-extern "C"
-{
-#if defined(_WIN32) || defined(__CYGWIN__)
-#include <windows.h>
-#else
-#if defined(__APPLE__)
-#include <mach-o/dyld.h>
-#endif
-#include <sys/errno.h>
-#include <unistd.h>
-#endif
-}
 
 namespace
 {
@@ -575,9 +562,6 @@ int main(int argc, char ** argv)
   {
     mju_error("Headers and library have different versions");
   }
-
-  // scan for libraries in the plugin directory to load additional plugins
-  scanPluginLibraries();
 
   mjvCamera cam;
   mjv_defaultCamera(&cam);
