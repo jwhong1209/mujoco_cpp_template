@@ -27,7 +27,11 @@
 #include <string>
 #include <thread>
 
+/* Dependencies */
 #include <eigen3/Eigen/Dense>
+
+/* Custom libraries */
+#include "DoublePendulumModel.hpp"
 
 #include "array_safety.h"
 #include "glfw_adapter.h"

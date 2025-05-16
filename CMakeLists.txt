@@ -31,7 +31,8 @@ endif()
 file(GLOB_RECURSE SRCS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/common/src/*.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/common/src/ComputedTorqueController.cpp
+  # ${CMAKE_CURRENT_SOURCE_DIR}/common/src/*.cpp
 )
 
 # Create executable and link libraries
@@ -40,7 +41,10 @@ add_executable(${PROJECT_NAME} ${SRCS})
 target_include_directories(${PROJECT_NAME}
 PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/common/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/common/include/controller
+  ${CMAKE_CURRENT_SOURCE_DIR}/common/include/motion
+  ${CMAKE_CURRENT_SOURCE_DIR}/common/include/robot
+  # ${CMAKE_CURRENT_SOURCE_DIR}/common/include/utilities
   ${MUJOCO_DIR}/include
   $<INSTALL_INTERFACE:include>
 )

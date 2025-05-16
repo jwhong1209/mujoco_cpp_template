@@ -1,6 +1,7 @@
 #ifndef DOUBLE_PENDULUM_MODEL_HPP_
 #define DOUBLE_PENDULUM_MODEL_HPP_
 
+#include <mujoco/mujoco.h>
 #include <eigen3/Eigen/Dense>
 
 template <typename T>
