@@ -23,7 +23,6 @@ private:
   // Eigen::Matrix<T, 2, 1> a_;  // Cartesian acceleration
 
   Eigen::Matrix<T, 2, 2> M_;
-  Eigen::Matrix<T, 2, 2> C_;
   Eigen::Matrix<T, 2, 1> tau_c_;
   Eigen::Matrix<T, 2, 1> tau_g_;
 
@@ -42,6 +41,7 @@ public:
   //* ----- GETTERS --------------------------------------------------------------------------------
   /* Kinematics */
   Eigen::Matrix<T, 2, 1> position();
+  Eigen::Matrix<T, 2, 1> velocity();
   Eigen::Matrix<T, 2, 2> orientatoin();
   Eigen::Matrix<T, 2, 2> jacobian();
 
