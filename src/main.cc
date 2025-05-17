@@ -28,7 +28,7 @@
 #include <thread>
 
 /* Custom libraries */
-#include "DoublePendulumModel.hpp"
+#include "ComputedTorqueController.hpp"
 
 namespace
 {
@@ -388,7 +388,16 @@ int main(int argc, char ** argv)
   auto sim = std::make_unique<mj::Simulate>(std::make_unique<mj::GlfwAdapter>(), &cam, &opt, &pert,
                                             /* is_passive = */ false);
 
-  //* set robot model file path
+  //* create controller instance *//
+  // ComputedTorqueController<double> controller(m, d);
+  auto controller = std::make_unique<ComputedTorqueController<double>>();
+  // mjcb_control = controller->update;
+  // mjcb_control = controller.get()->update;  // ! this doesn't work
+  mjcb_control = [controller = controller.get()](const mjModel * m, mjData * d) {
+    controller->update(m, d);
+  };
+
+  //* set robot model file path *//
   std::string root = PROJECT_ROOT_DIR;
   std::string model_path = root + "/assets/model/scene.xml";
   const char * filename = model_path.c_str();
@@ -399,6 +408,7 @@ int main(int argc, char ** argv)
 
   // start physics thread
   std::thread physicsthreadhandle(&PhysicsThread, sim.get(), filename);
+
   // TODO: possibly thread for data logging would be required
 
   // start simulation UI loop (blocking call)

@@ -3,12 +3,14 @@
 #include <cmath>
 
 template <typename T>
-DoublePendulumModel<T>::DoublePendulumModel(const T & l1, const T & l2,  //
-                                            const T & d1, const T & d2,  //
-                                            const T & m1, const T & m2,  //
-                                            const T & I1, const T & I2)
-  : l1_(l1), l2_(l2), d1_(d2), d2_(d2), m1_(m1), m2_(m2), I1_(I1), I2_(I2)
+DoublePendulumModel<T>::DoublePendulumModel()
 {
+  l1_ = l2_ = T(1.0);
+  d1_ = d2_ = T(0.5);
+  m1_ = m2_ = T(1.0);
+  I1_ = T(0.05);
+  I2_ = T(0.08);
+
   /* compute links' momentum of inertia w.r.t rotating axis */
   J1_ = I1_ + m1_ * (d1_ * d1_);
   J2_ = I2_ + m2_ * (d2_ * d2_);
@@ -16,8 +18,7 @@ DoublePendulumModel<T>::DoublePendulumModel(const T & l1, const T & l2,  //
 
 //* ----- SETTERS ----------------------------------------------------------------------------------
 template <typename T>
-void DoublePendulumModel<T>::setJointStates(const Eigen::Matrix<T, 2, 1> & q,
-                                            const Eigen::Matrix<T, 2, 1> & dq)
+void DoublePendulumModel<T>::setJointStates(const Vec2<T> & q, const Vec2<T> & dq)
 {
   q_ = q;
   dq_ = dq;
@@ -26,7 +27,7 @@ void DoublePendulumModel<T>::setJointStates(const Eigen::Matrix<T, 2, 1> & q,
 //* ----- GETTERS ----------------------------------------------------------------------------------
 /* Kinematics */
 template <typename T>
-Eigen::Matrix<T, 2, 1> DoublePendulumModel<T>::position()
+Vec2<T> DoublePendulumModel<T>::position()
 {
   const T q1 = q_(0);
   const T q12 = q_(0) + q_(1);
@@ -37,26 +38,14 @@ Eigen::Matrix<T, 2, 1> DoublePendulumModel<T>::position()
 }
 
 template <typename T>
-Eigen::Matrix<T, 2, 1> DoublePendulumModel<T>::velocity()
+Vec2<T> DoublePendulumModel<T>::velocity()
 {
   v_ = J_ * dq_;
   return v_;
 }
 
 template <typename T>
-Eigen::Matrix<T, 2, 2> DoublePendulumModel<T>::orientatoin()
-{
-  const T q1 = q_(1);
-  const T q2 = q_(1);
-
-  R_ << std::sin(q1), std::cos(q2),  //
-    -std::cos(q2), std::sin(q1);
-
-  return R_;
-}
-
-template <typename T>
-Eigen::Matrix<T, 2, 2> DoublePendulumModel<T>::jacobian()
+Mat2<T> DoublePendulumModel<T>::jacobian()
 {
   const T q1 = q_(0);
   const T q12 = q_(0) + q_(1);
@@ -71,7 +60,7 @@ Eigen::Matrix<T, 2, 2> DoublePendulumModel<T>::jacobian()
 
 /* Dynamics */
 template <typename T>
-Eigen::Matrix<T, 2, 2> DoublePendulumModel<T>::inertia()
+Mat2<T> DoublePendulumModel<T>::inertia()
 {
   const T q2 = q_(1);
 
@@ -84,19 +73,19 @@ Eigen::Matrix<T, 2, 2> DoublePendulumModel<T>::inertia()
 }
 
 template <typename T>
-Eigen::Matrix<T, 2, 1> DoublePendulumModel<T>::coriolis()
+Vec2<T> DoublePendulumModel<T>::coriolis()
 {
   const T q1 = q_(0);
   const T q2 = q_(1);
 
   tau_c_(0) = -m2_ * d2_ * l2_ * std::sin(q2) * (q2 * q2 + q1 * q2);
-  tau_c_(1) = m2_ * d2_ * l2 * std::sin(q2) * (q1 * q1);
+  tau_c_(1) = m2_ * d2_ * l2_ * std::sin(q2) * (q1 * q1);
 
   return tau_c_;
 }
 
 template <typename T>
-Eigen::Matrix<T, 2, 1> DoublePendulumModel<T>::gravity()
+Vec2<T> DoublePendulumModel<T>::gravity()
 {
   const T g = 9.81;
   const T q1 = q_(0);
@@ -107,3 +96,6 @@ Eigen::Matrix<T, 2, 1> DoublePendulumModel<T>::gravity()
 
   return tau_g_;
 }
+
+template class DoublePendulumModel<float>;
+template class DoublePendulumModel<double>;

@@ -38,11 +38,10 @@ void SaveData<T>::save_scalar(const T & val, bool is_last_data)
   }
 }
 
-// FIXME: vec has no member of `begin, end`
 template <typename T>
-void SaveData<T>::save_vector(const Eigen::Matrix<T, Eigen::Dynamic, 1> & vec, bool is_last_data)
+void SaveData<T>::save_vector(const VecX<T> & vec, bool is_last_data)
 {
-  data_cell_.insert(data_cell_.end(), vec.begin(), vec.end());
+  data_cell_.insert(data_cell_.end(), vec.data(), vec.data() + vec.size());
   if (is_last_data == true)
   {
     write_data(true);

@@ -2,7 +2,8 @@
 #define DOUBLE_PENDULUM_MODEL_HPP_
 
 #include <mujoco/mujoco.h>
-#include <eigen3/Eigen/Dense>
+
+#include "eigen_types.hpp"
 
 template <typename T>
 class DoublePendulumModel
@@ -14,41 +15,35 @@ private:
   T I1_, I2_;  // link's momentum of inertia w.r.t CoM
   T J1_, J2_;  // link's momentum of inertia w.r.t axis
 
-  Eigen::Matrix<T, 2, 1> q_;    // joint pos
-  Eigen::Matrix<T, 2, 1> dq_;   // joint vel
-  Eigen::Matrix<T, 2, 1> ddq_;  // joint acc
+  Vec2<T> q_;    // joint pos
+  Vec2<T> dq_;   // joint vel
+  Vec2<T> ddq_;  // joint acc
 
-  Eigen::Matrix<T, 2, 1> p_;  // Cartesian position
-  Eigen::Matrix<T, 2, 1> v_;  // Cartesian velocity
-  // Eigen::Matrix<T, 2, 1> a_;  // Cartesian acceleration
+  Vec2<T> p_;  // Cartesian position
+  Vec2<T> v_;  // Cartesian velocity
+  Vec2<T> a_;  // Cartesian acceleration
+  Mat2<T> J_;  // Jacobian matrix
 
-  Eigen::Matrix<T, 2, 2> M_;
-  Eigen::Matrix<T, 2, 1> tau_c_;
-  Eigen::Matrix<T, 2, 1> tau_g_;
-
-  Eigen::Matrix<T, 2, 2> R_;  // rotation matrix
-  Eigen::Matrix<T, 2, 2> J_;  // Jacobian matrix
+  Mat2<T> M_;      // inertia matrix
+  Vec2<T> tau_c_;  // coriolis
+  Vec2<T> tau_g_;  // gravity
 
 public:
-  DoublePendulumModel(const T & l1, const T & l2,   //
-                      const T & d1, const T & d2,   //
-                      const T & m1, const T & m2,   //
-                      const T & I1, const T & I2);  //
+  DoublePendulumModel();
 
   //* ----- SETTERS --------------------------------------------------------------------------------
-  void setJointStates(const Eigen::Matrix<T, 2, 1> & q, const Eigen::Matrix<T, 2, 1> & dq);
+  void setJointStates(const Vec2<T> & q, const Vec2<T> & dq);
 
   //* ----- GETTERS --------------------------------------------------------------------------------
   /* Kinematics */
-  Eigen::Matrix<T, 2, 1> position();
-  Eigen::Matrix<T, 2, 1> velocity();
-  Eigen::Matrix<T, 2, 2> orientatoin();
-  Eigen::Matrix<T, 2, 2> jacobian();
+  Vec2<T> position();
+  Vec2<T> velocity();
+  Mat2<T> jacobian();
 
   /* Dynamics */
-  Eigen::Matrix<T, 2, 2> inertia();
-  Eigen::Matrix<T, 2, 1> coriolis();
-  Eigen::Matrix<T, 2, 1> gravity();
+  Mat2<T> inertia();
+  Vec2<T> coriolis();
+  Vec2<T> gravity();
 
   //* ----- PRINTER --------------------------------------------------------------------------------
 };
