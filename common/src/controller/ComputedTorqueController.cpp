@@ -12,11 +12,13 @@ ComputedTorqueController<T>::ComputedTorqueController()
   dq_mes_.setZero();
   p_mes_.setZero();
   v_mes_.setZero();
+  F_ext_local_.setZero();
+  F_ext_world_.setZero();
   tau_des_.setZero();
 
   /* set control parameters */
-  kp_ << 100.0, 100.0;
-  kd_ << 10, 10;
+  kp_ << 10.0, 10.0;
+  kd_ << 1, 1;
 
   /* create model and planner objects */
   robot_ = std::make_unique<DoublePendulumModel<T>>();
@@ -51,8 +53,10 @@ void ComputedTorqueController<T>::update(const mjModel * m, mjData * d)
 template <typename T>
 void ComputedTorqueController<T>::updateImpl(const mjModel * m, mjData * d)
 {
-  dof_ = m->nv;  // degree of freedom
   // cout << "Tick:\t" << tick_ << " Time:\t" << d->time << endl;
+
+  dof_ = m->nv;  // degree of freedom
+  // cout << "DoF:\t" << dof_ << endl;
 
   //* update states *//
   this->getSensorData(m, d);
@@ -64,7 +68,19 @@ void ComputedTorqueController<T>::updateImpl(const mjModel * m, mjData * d)
   // cout << "EE position (measured):\t" << p_mes_.transpose() << endl << endl;
 
   Mat2<T> J = robot_->jacobian();
-  // cout << "Jacobian matrix:\n" << J << endl;
+  // cout << "Jacobian (computed):\n" << J << endl;
+
+  // int site_id = mj_name2id(m, mjOBJ_SITE, "ee_site");
+  // mjtNum jacp[3 * dof_] = { 0 };
+  // mjtNum jacr[3 * dof_] = { 0 };
+  // mj_jacSite(m, d, jacp, jacr, site_id);
+  // Mat2<T> J_mj = Mat2<T>::Zero();
+  // J_mj << jacp[2], jacp[3],  //
+  //   jacp[4], jacp[5];        //
+  // cout << "Jacobian (API):\n" << J_mj << endl;
+  // cout << jacp[0] << ", " << jacp[1] << endl;
+  // cout << jacp[2] << ", " << jacp[3] << endl;
+  // cout << jacp[4] << ", " << jacp[5] << endl << endl;
 
   Vec2<T> v = robot_->velocity();
   // cout << "EE velocity (calculated):\t" << v.transpose() << endl;
@@ -85,13 +101,13 @@ void ComputedTorqueController<T>::updateImpl(const mjModel * m, mjData * d)
   Vec2<T> tau_g = robot_->gravity();
   // cout << "gravity:\t" << tau_g.transpose() << endl;
 
-  // TODO: Check Coriolis & Gravity
-  Vec2<T> tau_bias = Vec2<T>::Zero();
-  for (int i = 0; i < dof_; ++i)
-  {
-    tau_bias(i) = d->qfrc_bias[i];
-  }
-  // cout << "coriolis+gravity:\t" << tau_c + tau_g << endl;
+  // Vec2<T> tau_bias = Vec2<T>::Zero();
+  // for (int i = 0; i < dof_; ++i)
+  // {
+  //   tau_bias(i) = d->qfrc_bias[i];  // ! looks like it doesn't include coriolis
+  // }
+  // cout << "coriolis+gravity:\t" << (tau_c + tau_g).transpose() << endl;
+  // cout << "coriolis+gravity:\t" << tau_g.transpose() << endl;
   // cout << "tau_bias:\t" << tau_bias.transpose() << endl << endl;
 
   //* set desired trajectory *//

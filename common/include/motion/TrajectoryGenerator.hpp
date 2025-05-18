@@ -12,7 +12,11 @@ private:
 public:
   TrajectoryGenerator(){};
 
-  void cubicPolynomial();
+  void step();
+  void sinusoidal();
+
+  void cubic();
+  void circular();
 };
 
 #endif  // TRAJECTORY_GENERATOR_HPP_

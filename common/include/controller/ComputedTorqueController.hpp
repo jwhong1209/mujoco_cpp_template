@@ -22,16 +22,27 @@ private:
   std::mutex logging_mtx_;
 
   int tick_ = 0;
-  T time_ = 0.0;
+  T loop_time_ = 0.0;
   T traj_time_ = 0.0;
+
+  enum TrajectoryType
+  {
+    STEP = 0,
+    SINUSOIDAL,
+    CUBIC,
+    CIRCULAR,
+  };
 
   int dof_;
 
-  Vec2<T> q_mes_;   // joint position
-  Vec2<T> dq_mes_;  // joint velocity
+  Vec2<T> q_des_, q_mes_;    // desired / measured joint position
+  Vec2<T> dq_des_, dq_mes_;  // desired / measured joint velocity
 
-  Vec2<T> p_mes_;  // end-effector Cartesian position
-  Vec2<T> v_mes_;  // end-effector Cartesian velocity
+  Vec2<T> p_des_, p_mes_;  // desired / measured EE Cartesian position
+  Vec2<T> v_des_, v_mes_;  // desired / measured EE Cartesian velocity
+
+  Vec2<T> F_ext_local_;  // external force in local frame
+  Vec2<T> F_ext_world_;  // external force in world frame
 
   Vec2<T> tau_des_;  // desired torque command
 

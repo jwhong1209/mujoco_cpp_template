@@ -41,6 +41,7 @@ public:
   Mat2<T> jacobian();
 
   /* Dynamics */
+  // https://robotics.stackexchange.com/questions/19861/model-of-two-link-rigid-manipulator
   Mat2<T> inertia();
   Vec2<T> coriolis();
   Vec2<T> gravity();

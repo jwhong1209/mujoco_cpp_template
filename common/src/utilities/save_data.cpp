@@ -48,4 +48,5 @@ void SaveData<T>::save_vector(const VecX<T> & vec, bool is_last_data)
   }
 }
 
+template class SaveData<float>;
 template class SaveData<double>;
