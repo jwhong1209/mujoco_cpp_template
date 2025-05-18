@@ -400,11 +400,11 @@ int main(int argc, char ** argv)
     filename = argv[1];
   }
 
-  //* UI initial settings *//
+  //* UI settings *//
   sim->ui0_enable = false;        // left UI is disabled (TAB)
   sim->ui1_enable = false;        // right UI <is disabled (Shift + TAB)
   sim->pending_.load_key = true;  // load key frame
-  // sim->run = true;
+  // sim->run = false;
 
   // start physics thread
   std::thread physicsthreadhandle(&PhysicsThread, sim.get(), filename);

@@ -21,15 +21,14 @@ private:
   // std::mutex command_mtx_;
   std::mutex logging_mtx_;
 
-  int tick_ = 0;
-  T loop_time_ = 0.0;
+  int iter_ = 0;
+  bool b_traj_start_ = false;
   T traj_time_ = 0.0;
 
+  int traj_type_ = 1;
   enum TrajectoryType
   {
-    STEP = 0,
-    SINUSOIDAL,
-    CUBIC,
+    CUBIC = 0,
     CIRCULAR,
   };
 
@@ -38,6 +37,7 @@ private:
   Vec2<T> q_des_, q_mes_;    // desired / measured joint position
   Vec2<T> dq_des_, dq_mes_;  // desired / measured joint velocity
 
+  Vec2<T> p_init_;
   Vec2<T> p_des_, p_mes_;  // desired / measured EE Cartesian position
   Vec2<T> v_des_, v_mes_;  // desired / measured EE Cartesian velocity
 
