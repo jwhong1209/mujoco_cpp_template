@@ -1,3 +1,5 @@
 .vscode/
 build/
+**/*.csv
+**/*.asv
 .clang-format

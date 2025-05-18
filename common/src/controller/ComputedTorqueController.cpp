@@ -13,8 +13,10 @@ ComputedTorqueController<T>::ComputedTorqueController()
   dq_mes_.setZero();
   p_init_.setZero();
   p_des_.setZero();
+  p_cal_.setZero();
   p_mes_.setZero();
   v_des_.setZero();
+  v_cal_.setZero();
   v_mes_.setZero();
   a_des_.setZero();
   F_ext_local_.setZero();
@@ -47,6 +49,11 @@ ComputedTorqueController<T>::ComputedTorqueController()
     cout << "Trajectory Generator is created" << endl;
   }
 
+  /* create logger object */
+  std::string root = PROJECT_ROOT_DIR;
+  std::string log_filename = root + "/assets/data/data.csv";
+  logger_ = std::make_unique<SaveData<T>>(log_filename);
+
   cout << "ComputedTorqueController (CTC) object is created and initialized" << endl;
 }
 
@@ -62,14 +69,15 @@ void ComputedTorqueController<T>::updateImpl(const mjModel * m, mjData * d)
   // cout << "Iteration:\t" << iter_ << " Time:\t" << d->time << endl;
 
   dof_ = m->nv;  // degree of freedom
+  loop_time_ = d->time;
 
   //* update states *//
   this->getSensorData(m, d);
   robot_->setJointStates(q_mes_, dq_mes_);
 
   /* compute kinematics */
-  Vec2<T> p = robot_->position();
-  // cout << "EE position (calculated):\t" << p.transpose() << endl;
+  p_cal_ = robot_->position();
+  // cout << "EE position (calculated):\t" << p_cal_.transpose() << endl;
   // cout << "EE position (measured):\t" << p_mes_.transpose() << endl << endl;
 
   Mat2<T> J = robot_->jacobian();
@@ -90,8 +98,8 @@ void ComputedTorqueController<T>::updateImpl(const mjModel * m, mjData * d)
   // cout << jacp[2] << ", " << jacp[3] << endl;
   // cout << jacp[4] << ", " << jacp[5] << endl << endl;
 
-  Vec2<T> v = robot_->velocity();
-  // cout << "EE velocity (calculated):\t" << v.transpose() << endl;
+  v_cal_ = robot_->velocity();
+  // cout << "EE velocity (calculated):\t" << v_cal_.transpose() << endl;
   // cout << "EE velocity (measured):\t" << v_mes_.transpose() << endl;
 
   /* compute dynamics */
@@ -132,7 +140,7 @@ void ComputedTorqueController<T>::updateImpl(const mjModel * m, mjData * d)
   //* set desired trajectory *//
   const T traj_start_time(3);  // trajectory starts at 3 sec
   const T traj_end_time(9);    // trajectory ends at 9 sec
-  const bool b_traj_running_ = (traj_start_time <= d->time && d->time < traj_end_time);
+  const bool b_traj_running_ = (traj_start_time <= loop_time_ && loop_time_ < traj_end_time);
 
   if (b_traj_running_)
   {
@@ -148,7 +156,7 @@ void ComputedTorqueController<T>::updateImpl(const mjModel * m, mjData * d)
       case TrajectoryType::CUBIC: {
         Vec2<T> p_goal = p_init_ + Vec2<T>::Constant(0.2);  // move EE 10 cm
 
-        p_des_ = planner_->cubic(d->time, traj_start_time, traj_end_time, p_init_, p_goal,
+        p_des_ = planner_->cubic(loop_time_, traj_start_time, traj_end_time, p_init_, p_goal,
                                  Vec2<T>::Zero());
         a_des_.setZero();
         break;
@@ -158,8 +166,9 @@ void ComputedTorqueController<T>::updateImpl(const mjModel * m, mjData * d)
         T circle_radius(0.1);
         T circle_freq = repeat / (traj_end_time - traj_start_time);
 
-        p_des_ = planner_->circular(d->time, traj_start_time, circle_radius, circle_freq, p_init_);
-        a_des_ = planner_->circularDDot(d->time, traj_start_time, circle_radius, circle_freq);
+        p_des_ =
+          planner_->circular(loop_time_, traj_start_time, circle_radius, circle_freq, p_init_);
+        a_des_ = planner_->circularDDot(loop_time_, traj_start_time, circle_radius, circle_freq);
         break;
       }
       default:
@@ -205,8 +214,6 @@ void ComputedTorqueController<T>::getSensorData(const mjModel * m, mjData * d)
   {
     q_mes_(i) = d->sensordata[i];
     dq_mes_(i) = d->sensordata[i + dof_];
-    // q_mes_(i) = d->qpos[i];
-    // dq_mes_(i) = d->qvel[i];
   }
 
   p_mes_(0) = d->sensordata[5];        // y direction
@@ -214,6 +221,47 @@ void ComputedTorqueController<T>::getSensorData(const mjModel * m, mjData * d)
 
   v_mes_(0) = d->sensordata[12];  // y direction
   v_mes_(1) = d->sensordata[13];  // z direction (1.5 is initial height)
+}
+
+//* ----- LOGGING ----------------------------------------------------------------------------------
+template <typename T>
+void ComputedTorqueController<T>::startLogging()
+{
+  if (!b_logging_running_)
+  {
+    b_logging_running_ = true;
+    logging_thread_ = std::thread(&ComputedTorqueController<T>::dataLoggingLoop, this);
+  }
+}
+
+template <typename T>
+void ComputedTorqueController<T>::stopLogging()
+{
+  if (b_logging_running_)
+  {
+    b_logging_running_ = false;
+    if (logging_thread_.joinable())
+    {
+      logging_thread_.join();
+    }
+  }
+}
+
+template <typename T>
+void ComputedTorqueController<T>::dataLoggingLoop()
+{
+  while (b_logging_running_)
+  {
+    {
+      std::lock_guard<std::mutex> lock(logging_mtx_);
+      logger_->save_scalar(loop_time_);
+      logger_->save_vector(p_des_);
+      logger_->save_vector(p_cal_);
+      logger_->save_vector(tau_des_, true);
+    }
+    // cout << "logging thread is running !" << endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));  // log data in 100Hz
+  }
 }
 
 template class ComputedTorqueController<float>;
