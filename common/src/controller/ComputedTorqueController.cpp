@@ -116,56 +116,40 @@ void ComputedTorqueController<T>::updateImpl(const mjModel * m, mjData * d)
   // cout << "tau_bias:\t" << tau_bias.transpose() << endl << endl;
 
   //* set desired trajectory *//
-  T traj_start_time(3);  // trajectory starts at 3 sec
-  T traj_end_time(0);
+  const T traj_start_time(3);  // trajectory starts at 3 sec
+  const T traj_end_time(9);    // trajectory ends at 9 sec
+  const bool b_traj_running_ = (traj_start_time <= d->time && d->time < traj_end_time);
 
-  if (traj_type_ == TrajectoryType::CUBIC)
+  if (b_traj_running_)
   {
-    traj_end_time = T(6);
-    Vec2<T> p_goal = p_init_ + Vec2<T>::Constant(0.2);  // move EE 10 cm
-
-    if (traj_start_time <= d->time && d->time < traj_end_time)
+    if (!b_traj_start_)
     {
-      if (b_traj_start_ == false)
+      p_init_ = p_mes_;
+      b_traj_start_ = true;
+    }
+    else
+    {
+      switch (traj_type_)
       {
-        p_init_ = p_mes_;
-        b_traj_start_ = true;
-      }
-      else
-      {
+      case TrajectoryType::CUBIC: {
+        Vec2<T> p_goal = p_init_ + Vec2<T>::Constant(0.2);  // move EE 10 cm
+
         p_des_ = planner_->cubic(d->time, traj_start_time, traj_end_time, p_init_, p_goal,
                                  Vec2<T>::Zero());
+        break;
       }
-    }
-    else
-    {
-      p_des_ = p_mes_;
-      b_traj_start_ = false;
-    }
-  }
-  else if (traj_type_ == TrajectoryType::CIRCULAR)
-  {
-    T circle_radius(0.1);
-    T circle_freq(0.5);
-    int repeat(3);
-    traj_end_time = traj_start_time + repeat / circle_freq;
+      case TrajectoryType::CIRCULAR: {
+        const int repeat(3);
+        T circle_radius(0.1);
+        T circle_freq = repeat / (traj_end_time - traj_start_time);
 
-    if (traj_start_time <= d->time && d->time < traj_end_time)
-    {
-      if (b_traj_start_ == false)
-      {
-        p_init_ = p_mes_;
-        b_traj_start_ = true;
-      }
-      else
-      {
         p_des_ = planner_->circular(d->time, traj_start_time, circle_radius, circle_freq, p_init_);
+        break;
       }
-    }
-    else
-    {
-      p_des_ = p_mes_;
-      b_traj_start_ = false;
+      default:
+        p_des_ = p_mes_;
+        break;
+      }
     }
   }
   else

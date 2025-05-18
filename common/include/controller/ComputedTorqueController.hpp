@@ -25,7 +25,7 @@ private:
   bool b_traj_start_ = false;
   T traj_time_ = 0.0;
 
-  int traj_type_ = 1;
+  int traj_type_ = 0;
   enum TrajectoryType
   {
     CUBIC = 0,
