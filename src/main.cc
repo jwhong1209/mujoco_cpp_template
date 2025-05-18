@@ -407,17 +407,20 @@ int main(int argc, char ** argv)
   sim->pending_.load_key = true;  // load key frame
   // sim->run = false;
 
+  /* create controller object */
+  auto & controller = ComputedTorqueController<double>::getInstance();
+
+  /* start data logging thread */
+  controller.startLogging();
+
   // start physics thread
   std::thread physicsthreadhandle(&PhysicsThread, sim.get(), filename);
 
-  /* data logger thread */
   // TODO: possibly thread for data logging would be required
-  // std::thread logging_thread_handle();
-
   // start simulation UI loop (blocking call)
   sim->RenderLoop();
   physicsthreadhandle.join();
-  // logging_thread_handle.join();
+  controller.stopLogging();  // join logging thread
 
   return 0;
 }
