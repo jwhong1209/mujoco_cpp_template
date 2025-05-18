@@ -21,18 +21,30 @@ private:
   Vec2<T> q_mes_;
   Vec2<T> dq_mes_;
 
-  Vec2<T> kp_;  // proportional gain
-  Vec2<T> kd_;  // derviative gain
+  Vec2<T> p_mes_;  // end-effector Cartesian position
+  Vec2<T> v_mes_;  // end-effector Cartesian velocity
 
   Vec2<T> tau_des_;  // desired torque command
+
+  Vec2<T> kp_;  // proportional gain
+  Vec2<T> kd_;  // derviative gain
 
 public:
   ComputedTorqueController();
 
-  void init();
-  void update(const mjModel * m, mjData * d);
+  ComputedTorqueController(const ComputedTorqueController &) = delete;
+  ComputedTorqueController & operator=(const ComputedTorqueController &) = delete;
+  ComputedTorqueController(ComputedTorqueController &&) = delete;
+  ComputedTorqueController & operator=(ComputedTorqueController &&) = delete;
 
-  void setControlParameters(const Vec2<T> & kp, const Vec2<T> & kd);
+  static ComputedTorqueController & getInstance()
+  {
+    static ComputedTorqueController controller;
+    return controller;
+  }
+
+  static void update(const mjModel * m, mjData * d);
+  void updateCallback(const mjModel * m, mjData * d);
 };
 
 #endif  // COMPUTED_TORQUE_CONTROLLER_HPP_
