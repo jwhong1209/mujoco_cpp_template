@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include <eigen3/Eigen/Dense>
+#include "eigen_types.hpp"
 
 template <typename T>
 class SaveData
@@ -39,7 +39,7 @@ public:
 
   void write_data(bool is_last_data = false);
   void save_scalar(const T & val, bool is_last_data = false);
-  void save_vector(const Eigen::Matrix<T, Eigen::Dynamic, 1> & vec, bool is_last_data = false);
+  void save_vector(const VecX<T> & vec, bool is_last_data = false);
 };
 
 #endif  // SAVE_DATA_HPP_
