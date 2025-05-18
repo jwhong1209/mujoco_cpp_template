@@ -12,45 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/* MuJoCo libraries */
 #include <mujoco/mujoco.h>
-
-#include <cerrno>
-#include <chrono>
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
-#include <memory>
-#include <mutex>
-#include <new>
-#include <string>
-#include <thread>
-
-/* Dependencies */
-#include <eigen3/Eigen/Dense>
-
-/* Custom libraries */
-#include "DoublePendulumModel.hpp"
 
 #include "array_safety.h"
 #include "glfw_adapter.h"
 #include "simulate.h"
 
-#define MUJOCO_PLUGIN_DIR "mujoco_plugin"
+/* C++ STL */
+#include <chrono>
+#include <iostream>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
 
-extern "C"
-{
-#if defined(_WIN32) || defined(__CYGWIN__)
-#include <windows.h>
-#else
-#if defined(__APPLE__)
-#include <mach-o/dyld.h>
-#endif
-#include <sys/errno.h>
-#include <unistd.h>
-#endif
-}
+/* Custom libraries */
+#include "ComputedTorqueController.hpp"
 
 namespace
 {
@@ -67,165 +45,6 @@ mjModel * m = nullptr;
 mjData * d = nullptr;
 
 using Seconds = std::chrono::duration<double>;
-
-//---------------------------------------- plugin handling -----------------------------------------
-
-// return the path to the directory containing the current executable
-// used to determine the location of auto-loaded plugin libraries
-std::string getExecutableDir()
-{
-#if defined(_WIN32) || defined(__CYGWIN__)
-  constexpr char kPathSep = '\\';
-  std::string realpath = [&]() -> std::string {
-    std::unique_ptr<char[]> realpath(nullptr);
-    DWORD buf_size = 128;
-    bool success = false;
-    while (!success)
-    {
-      realpath.reset(new (std::nothrow) char[buf_size]);
-      if (!realpath)
-      {
-        std::cerr << "cannot allocate memory to store executable path\n";
-        return "";
-      }
-
-      DWORD written = GetModuleFileNameA(nullptr, realpath.get(), buf_size);
-      if (written < buf_size)
-      {
-        success = true;
-      }
-      else if (written == buf_size)
-      {
-        // realpath is too small, grow and retry
-        buf_size *= 2;
-      }
-      else
-      {
-        std::cerr << "failed to retrieve executable path: " << GetLastError() << "\n";
-        return "";
-      }
-    }
-    return realpath.get();
-  }();
-#else
-  constexpr char kPathSep = '/';
-#if defined(__APPLE__)
-  std::unique_ptr<char[]> buf(nullptr);
-  {
-    std::uint32_t buf_size = 0;
-    _NSGetExecutablePath(nullptr, &buf_size);
-    buf.reset(new char[buf_size]);
-    if (!buf)
-    {
-      std::cerr << "cannot allocate memory to store executable path\n";
-      return "";
-    }
-    if (_NSGetExecutablePath(buf.get(), &buf_size))
-    {
-      std::cerr << "unexpected error from _NSGetExecutablePath\n";
-    }
-  }
-  const char * path = buf.get();
-#else
-  const char * path = "/proc/self/exe";
-#endif
-  std::string realpath = [&]() -> std::string {
-    std::unique_ptr<char[]> realpath(nullptr);
-    std::uint32_t buf_size = 128;
-    bool success = false;
-    while (!success)
-    {
-      realpath.reset(new (std::nothrow) char[buf_size]);
-      if (!realpath)
-      {
-        std::cerr << "cannot allocate memory to store executable path\n";
-        return "";
-      }
-
-      std::size_t written = readlink(path, realpath.get(), buf_size);
-      if (written < buf_size)
-      {
-        realpath.get()[written] = '\0';
-        success = true;
-      }
-      else if (written == -1)
-      {
-        if (errno == EINVAL)
-        {
-          // path is already not a symlink, just use it
-          return path;
-        }
-
-        std::cerr << "error while resolving executable path: " << strerror(errno) << '\n';
-        return "";
-      }
-      else
-      {
-        // realpath is too small, grow and retry
-        buf_size *= 2;
-      }
-    }
-    return realpath.get();
-  }();
-#endif
-
-  if (realpath.empty())
-  {
-    return "";
-  }
-
-  for (std::size_t i = realpath.size() - 1; i > 0; --i)
-  {
-    if (realpath.c_str()[i] == kPathSep)
-    {
-      return realpath.substr(0, i);
-    }
-  }
-
-  // don't scan through the entire file system's root
-  return "";
-}
-
-// scan for libraries in the plugin directory to load additional plugins
-void scanPluginLibraries()
-{
-  // check and print plugins that are linked directly into the executable
-  int nplugin = mjp_pluginCount();
-  if (nplugin)
-  {
-    std::printf("Built-in plugins:\n");
-    for (int i = 0; i < nplugin; ++i)
-    {
-      std::printf("    %s\n", mjp_getPluginAtSlot(i)->name);
-    }
-  }
-
-  // define platform-specific strings
-#if defined(_WIN32) || defined(__CYGWIN__)
-  const std::string sep = "\\";
-#else
-  const std::string sep = "/";
-#endif
-
-  // try to open the ${EXECDIR}/MUJOCO_PLUGIN_DIR directory
-  // ${EXECDIR} is the directory containing the simulate binary itself
-  // MUJOCO_PLUGIN_DIR is the MUJOCO_PLUGIN_DIR preprocessor macro
-  const std::string executable_dir = getExecutableDir();
-  if (executable_dir.empty())
-  {
-    return;
-  }
-
-  const std::string plugin_dir = getExecutableDir() + sep + MUJOCO_PLUGIN_DIR;
-  mj_loadAllPluginLibraries(
-    plugin_dir.c_str(), +[](const char * filename, int first, int count) {
-      std::printf("Plugins registered by library '%s':\n", filename);
-      for (int i = first; i < first + count; ++i)
-      {
-        std::printf("    %s\n", mjp_getPluginAtSlot(i)->name);
-      }
-    });
-}
 
 //------------------------------------------- simulation -------------------------------------------
 
@@ -546,38 +365,15 @@ void PhysicsThread(mj::Simulate * sim, const char * filename)
 
 //------------------------------------------ main --------------------------------------------------
 
-// machinery for replacing command line error by a macOS dialog box when running
-// under Rosetta
-#if defined(__APPLE__) && defined(__AVX__)
-extern void DisplayErrorDialogBox(const char * title, const char * msg);
-static const char * rosetta_error_msg = nullptr;
-__attribute__((used, visibility("default"))) extern "C" void _mj_rosettaError(const char * msg)
-{
-  rosetta_error_msg = msg;
-}
-#endif
-
 // run event loop
 int main(int argc, char ** argv)
 {
-  // display an error if running on macOS under Rosetta 2
-#if defined(__APPLE__) && defined(__AVX__)
-  if (rosetta_error_msg)
-  {
-    DisplayErrorDialogBox("Rosetta 2 is not supported", rosetta_error_msg);
-    std::exit(1);
-  }
-#endif
-
   // print version, check compatibility
   std::printf("MuJoCo version %s\n", mj_versionString());
   if (mjVERSION_HEADER != mj_version())
   {
     mju_error("Headers and library have different versions");
   }
-
-  // scan for libraries in the plugin directory to load additional plugins
-  scanPluginLibraries();
 
   mjvCamera cam;
   mjv_defaultCamera(&cam);
@@ -592,8 +388,10 @@ int main(int argc, char ** argv)
   auto sim = std::make_unique<mj::Simulate>(std::make_unique<mj::GlfwAdapter>(), &cam, &opt, &pert,
                                             /* is_passive = */ false);
 
-  //*
-  // const char* filename = nullptr;
+  //* controller callback *//
+  mjcb_control = &ComputedTorqueController<double>::update;
+
+  //* set robot model file path *//
   std::string root = PROJECT_ROOT_DIR;
   std::string model_path = root + "/assets/model/scene.xml";
   const char * filename = model_path.c_str();
@@ -604,11 +402,15 @@ int main(int argc, char ** argv)
 
   // start physics thread
   std::thread physicsthreadhandle(&PhysicsThread, sim.get(), filename);
+
+  /* data logger thread */
   // TODO: possibly thread for data logging would be required
+  // std::thread logging_thread_handle();
 
   // start simulation UI loop (blocking call)
   sim->RenderLoop();
   physicsthreadhandle.join();
+  // logging_thread_handle.join();
 
   return 0;
 }
