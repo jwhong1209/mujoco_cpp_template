@@ -388,14 +388,8 @@ int main(int argc, char ** argv)
   auto sim = std::make_unique<mj::Simulate>(std::make_unique<mj::GlfwAdapter>(), &cam, &opt, &pert,
                                             /* is_passive = */ false);
 
-  //* create controller instance *//
-  // ComputedTorqueController<double> controller(m, d);
-  auto controller = std::make_unique<ComputedTorqueController<double>>();
-  // mjcb_control = controller->update;
-  // mjcb_control = controller.get()->update;  // ! this doesn't work
-  mjcb_control = [controller = controller.get()](const mjModel * m, mjData * d) {
-    controller->update(m, d);
-  };
+  //* controller callback *//
+  mjcb_control = &ComputedTorqueController<double>::update;
 
   //* set robot model file path *//
   std::string root = PROJECT_ROOT_DIR;
@@ -409,11 +403,14 @@ int main(int argc, char ** argv)
   // start physics thread
   std::thread physicsthreadhandle(&PhysicsThread, sim.get(), filename);
 
+  /* data logger thread */
   // TODO: possibly thread for data logging would be required
+  // std::thread logging_thread_handle();
 
   // start simulation UI loop (blocking call)
   sim->RenderLoop();
   physicsthreadhandle.join();
+  // logging_thread_handle.join();
 
   return 0;
 }

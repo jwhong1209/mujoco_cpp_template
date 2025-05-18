@@ -7,24 +7,30 @@ using namespace std;
 template <typename T>
 ComputedTorqueController<T>::ComputedTorqueController()
 {
-  this->init();
-  cout << "Controller object is created" << endl;
-}
-
-template <typename T>
-void ComputedTorqueController<T>::init()
-{
+  /* initialize states */
+  q_mes_.setZero();
+  dq_mes_.setZero();
+  p_mes_.setZero();
+  v_mes_.setZero();
   tau_des_.setZero();
 
   /* set control parameters */
+  kp_ << 10.0, 10.0;
+  kd_ << 0.1, 0.1;
+
+  cout << "ComputedTorqueController (CTC) object is created and initialized" << endl;
 }
 
 template <typename T>
 void ComputedTorqueController<T>::update(const mjModel * m, mjData * d)
 {
-  cout << "Enter control loop" << endl;
+  getInstance().updateCallback(m, d);
+}
 
-  int dof = q_mes_.size();
+template <typename T>
+void ComputedTorqueController<T>::updateCallback(const mjModel * m, mjData * d)
+{
+  const int DOF = m->nv;  // degree of freedom
 
   //* update states *//
   /* compute kinematics */
@@ -38,17 +44,10 @@ void ComputedTorqueController<T>::update(const mjModel * m, mjData * d)
   //* control law *//
 
   //* send command *//
-  for (int i = 0; i < dof; ++i)
+  for (int i = 0; i < DOF; ++i)
   {
     d->ctrl[i] = tau_des_[i];
   }
-}
-
-template <typename T>
-void ComputedTorqueController<T>::setControlParameters(const Vec2<T> & kp, const Vec2<T> & kd)
-{
-  kp_ = kp;
-  kd_ = kd;
 }
 
 template class ComputedTorqueController<float>;
