@@ -45,11 +45,11 @@ ComputedTorqueController<T>::ComputedTorqueController()
 template <typename T>
 void ComputedTorqueController<T>::update(const mjModel * m, mjData * d)
 {
-  getInstance().updateCallback(m, d);
+  getInstance().updateImpl(m, d);
 }
 
 template <typename T>
-void ComputedTorqueController<T>::updateCallback(const mjModel * m, mjData * d)
+void ComputedTorqueController<T>::updateImpl(const mjModel * m, mjData * d)
 {
   dof_ = m->nv;  // degree of freedom
   // cout << "Tick:\t" << tick_ << " Time:\t" << d->time << endl;
@@ -112,6 +112,9 @@ void ComputedTorqueController<T>::updateCallback(const mjModel * m, mjData * d)
   tick_++;
 }
 
+/**
+ * @brief Get MuJoCo sensor data in MJCF into local member variables
+ */
 template <typename T>
 void ComputedTorqueController<T>::getSensorData(const mjModel * m, mjData * d)
 {
@@ -126,8 +129,6 @@ void ComputedTorqueController<T>::getSensorData(const mjModel * m, mjData * d)
 
   v_mes_(0) = d->sensordata[12];  // y direction
   v_mes_(1) = d->sensordata[13];  // z direction (1.5 is initial height)
-
-  //* Add sensordata that you want to check here...
 }
 
 template class ComputedTorqueController<float>;

@@ -1,8 +1,8 @@
 #ifndef COMPUTED_TORQUE_CONTROLLER_HPP_
 #define COMPUTED_TORQUE_CONTROLLER_HPP_
 
-// #include <mutex>
 #include <memory>
+#include <mutex>
 
 #include <mujoco/mujoco.h>
 
@@ -17,8 +17,9 @@ private:
   std::unique_ptr<TrajectoryGenerator<T>> planner_;
 
   // TODO: Check whether these mutexs are necessary
-  // std::mutex state_mutex_;
-  // std::mutex command_mutex_;
+  // std::mutex state_mtx_;
+  // std::mutex command_mtx_;
+  std::mutex logging_mtx_;
 
   int tick_ = 0;
   T time_ = 0.0;
@@ -52,9 +53,15 @@ public:
   }
 
   static void update(const mjModel * m, mjData * d);
-  void updateCallback(const mjModel * m, mjData * d);
+  void updateImpl(const mjModel * m, mjData * d);  // * Implement controller here
 
+  /**
+   * @brief Get MuJoCo sensor data in MJCF into local member variables
+   */
   void getSensorData(const mjModel * m, mjData * d);
+
+  // TODO: Implement data logging in separated thread
+  // void dataLoggingLoop();
 };
 
 #endif  // COMPUTED_TORQUE_CONTROLLER_HPP_
