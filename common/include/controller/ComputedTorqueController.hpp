@@ -1,7 +1,8 @@
 #ifndef COMPUTED_TORQUE_CONTROLLER_HPP_
 #define COMPUTED_TORQUE_CONTROLLER_HPP_
 
-#include <mutex>
+// #include <mutex>
+#include <memory>
 
 #include <mujoco/mujoco.h>
 
@@ -12,14 +13,21 @@ template <typename T>
 class ComputedTorqueController
 {
 private:
-  DoublePendulumModel<T> robot_;
-  TrajectoryGenerator<T> planner_;
+  std::unique_ptr<DoublePendulumModel<T>> robot_;
+  std::unique_ptr<TrajectoryGenerator<T>> planner_;
 
-  std::mutex state_mutex_;
-  std::mutex command_mutex_;
+  // TODO: Check whether these mutexs are necessary
+  // std::mutex state_mutex_;
+  // std::mutex command_mutex_;
 
-  Vec2<T> q_mes_;
-  Vec2<T> dq_mes_;
+  int tick_ = 0;
+  T time_ = 0.0;
+  T traj_time_ = 0.0;
+
+  int dof_;
+
+  Vec2<T> q_mes_;   // joint position
+  Vec2<T> dq_mes_;  // joint velocity
 
   Vec2<T> p_mes_;  // end-effector Cartesian position
   Vec2<T> v_mes_;  // end-effector Cartesian velocity
@@ -45,6 +53,8 @@ public:
 
   static void update(const mjModel * m, mjData * d);
   void updateCallback(const mjModel * m, mjData * d);
+
+  void getSensorData(const mjModel * m, mjData * d);
 };
 
 #endif  // COMPUTED_TORQUE_CONTROLLER_HPP_
