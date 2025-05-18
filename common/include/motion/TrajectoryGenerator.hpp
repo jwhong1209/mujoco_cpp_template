@@ -27,6 +27,11 @@ public:
                    const T r,            // radius
                    const T Hz,           // frequency
                    const Vec2<T> & p0);  // initial position
+
+  Vec2<T> circularDDot(const T t,    // current time
+                       const T t0,   // initial time
+                       const T r,    // radius
+                       const T Hz);  // frequency
 };
 
 #endif  // TRAJECTORY_GENERATOR_HPP_

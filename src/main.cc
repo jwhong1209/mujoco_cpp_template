@@ -349,6 +349,10 @@ void PhysicsThread(mj::Simulate * sim, const char * filename)
       const std::unique_lock<std::recursive_mutex> lock(sim->mtx);
 
       mj_forward(m, d);
+
+      //* controller callback *//
+      // !!! mjcb_control should be callback after simulation initialized
+      mjcb_control = &ComputedTorqueController<double>::update;
     }
     else
     {
@@ -387,9 +391,6 @@ int main(int argc, char ** argv)
   // simulate object encapsulates the UI
   auto sim = std::make_unique<mj::Simulate>(std::make_unique<mj::GlfwAdapter>(), &cam, &opt, &pert,
                                             /* is_passive = */ false);
-
-  //* controller callback *//
-  mjcb_control = &ComputedTorqueController<double>::update;
 
   //* set robot model file path *//
   std::string root = PROJECT_ROOT_DIR;

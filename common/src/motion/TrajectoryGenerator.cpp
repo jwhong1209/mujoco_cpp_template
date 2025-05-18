@@ -36,11 +36,26 @@ Vec2<T> TrajectoryGenerator<T>::circular(const T t,           // current time
                                          const T Hz,          // frequency
                                          const Vec2<T> & p0)  // initial position
 {
+  const T w = 2 * M_PI * Hz;
   Vec2<T> p_des = p0;
 
-  p_des(0) += r * (1 - cos(2 * M_PI * Hz * (t - t0)));
-  p_des(1) += r * sin(2 * M_PI * Hz * (t - t0));
+  p_des(0) += r * (1 - cos(w * (t - t0)));
+  p_des(1) += r * sin(w * (t - t0));
   return p_des;
+}
+
+template <typename T>
+Vec2<T> TrajectoryGenerator<T>::circularDDot(const T t,   // current time
+                                             const T t0,  // initial time
+                                             const T r,   // radius
+                                             const T Hz)  // frequency
+{
+  const T w = 2 * M_PI * Hz;
+  Vec2<T> a_des = Vec2<T>::Zero();
+
+  a_des(0) = (r * w * w) * cos(w * (t - t0));
+  a_des(1) = -(r * w * w) * sin(w * (t - t0));
+  return a_des;
 }
 
 template class TrajectoryGenerator<float>;

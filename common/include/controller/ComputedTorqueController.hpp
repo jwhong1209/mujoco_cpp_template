@@ -25,7 +25,7 @@ private:
   bool b_traj_start_ = false;
   T traj_time_ = 0.0;
 
-  int traj_type_ = 0;
+  int traj_type_ = 1;
   enum TrajectoryType
   {
     CUBIC = 0,
@@ -40,6 +40,7 @@ private:
   Vec2<T> p_init_;
   Vec2<T> p_des_, p_mes_;  // desired / measured EE Cartesian position
   Vec2<T> v_des_, v_mes_;  // desired / measured EE Cartesian velocity
+  Vec2<T> a_des_;          // desired EE Cartesian acceleration
 
   Vec2<T> F_ext_local_;  // external force in local frame
   Vec2<T> F_ext_world_;  // external force in world frame
