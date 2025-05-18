@@ -68,7 +68,6 @@ Mat2<T> DoublePendulumModel<T>::inertia()
 
   M_(0, 0) = J1_ + J2_ + m2_ * (l1_ * l1_) + 2 * m2_ * l1_ * d2_ * cos(q2);
   M_(0, 1) = M_(1, 0) = J2_ + m2_ * l1_ * d2_ * cos(q2);
-  // M_(1, 0) = J2_ + m2_ * l1_ * d2_ * cos(q2);
   M_(1, 1) = J2_;
 
   return M_;

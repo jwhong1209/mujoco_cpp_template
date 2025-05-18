@@ -8,17 +8,22 @@ template <typename T>
 ComputedTorqueController<T>::ComputedTorqueController()
 {
   /* initialize states */
-  q_mes_.setZero();
+  // q_mes_.setZero();
+  q_mes_ << -0.7854, 1.5708;
   dq_mes_.setZero();
+  p_init_.setZero();
+  p_des_.setZero();
   p_mes_.setZero();
+  v_des_.setZero();
   v_mes_.setZero();
+  a_des_.setZero();
   F_ext_local_.setZero();
   F_ext_world_.setZero();
   tau_des_.setZero();
 
   /* set control parameters */
-  kp_ << 10.0, 10.0;
-  kd_ << 1, 1;
+  kp_ << 50.0, 50.0;
+  kd_ << 5, 5;
 
   /* create model and planner objects */
   robot_ = std::make_unique<DoublePendulumModel<T>>();
@@ -29,6 +34,7 @@ ComputedTorqueController<T>::ComputedTorqueController()
   else
   {
     cout << "Double Pendulum Model is created" << endl;
+    robot_->setJointStates(q_mes_, dq_mes_);
   }
 
   planner_ = std::make_unique<TrajectoryGenerator<T>>();
@@ -53,10 +59,9 @@ void ComputedTorqueController<T>::update(const mjModel * m, mjData * d)
 template <typename T>
 void ComputedTorqueController<T>::updateImpl(const mjModel * m, mjData * d)
 {
-  // cout << "Tick:\t" << tick_ << " Time:\t" << d->time << endl;
+  // cout << "Iteration:\t" << iter_ << " Time:\t" << d->time << endl;
 
   dof_ = m->nv;  // degree of freedom
-  // cout << "DoF:\t" << dof_ << endl;
 
   //* update states *//
   this->getSensorData(m, d);
@@ -69,6 +74,9 @@ void ComputedTorqueController<T>::updateImpl(const mjModel * m, mjData * d)
 
   Mat2<T> J = robot_->jacobian();
   // cout << "Jacobian (computed):\n" << J << endl;
+  Mat2<T> J_t = J.transpose();  // Jacobian transpose
+  Mat2<T> J_inv = J.inverse();
+  Mat2<T> J_t_inv = J_t.inverse();
 
   // int site_id = mj_name2id(m, mjOBJ_SITE, "ee_site");
   // mjtNum jacp[3 * dof_] = { 0 };
@@ -88,6 +96,17 @@ void ComputedTorqueController<T>::updateImpl(const mjModel * m, mjData * d)
 
   /* compute dynamics */
   Mat2<T> M = robot_->inertia();
+  if (M.determinant() < 1e-10)
+  {
+    std::cerr << "Warning: M is nearly singular !" << std::endl;
+  }
+
+  Mat2<T> Mo = J_t_inv * M * J_inv;  // operational-space inertia
+  if (!Mo.allFinite())
+  {
+    std::cerr << "Warning: Mo contains NaN or Inf !" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   // cout << "Inertia (computed):\n" << M << endl;
   // double M_mj_arr[dof_ * dof_] = { 0 };
   // mj_fullM(m, M_mj_arr, d->qM);
@@ -111,12 +130,60 @@ void ComputedTorqueController<T>::updateImpl(const mjModel * m, mjData * d)
   // cout << "tau_bias:\t" << tau_bias.transpose() << endl << endl;
 
   //* set desired trajectory *//
+  const T traj_start_time(3);  // trajectory starts at 3 sec
+  const T traj_end_time(9);    // trajectory ends at 9 sec
+  const bool b_traj_running_ = (traj_start_time <= d->time && d->time < traj_end_time);
+
+  if (b_traj_running_)
+  {
+    if (!b_traj_start_)
+    {
+      p_init_ = p_mes_;
+      b_traj_start_ = true;
+    }
+    else
+    {
+      switch (traj_type_)
+      {
+      case TrajectoryType::CUBIC: {
+        Vec2<T> p_goal = p_init_ + Vec2<T>::Constant(0.2);  // move EE 10 cm
+
+        p_des_ = planner_->cubic(d->time, traj_start_time, traj_end_time, p_init_, p_goal,
+                                 Vec2<T>::Zero());
+        a_des_.setZero();
+        break;
+      }
+      case TrajectoryType::CIRCULAR: {
+        const int repeat(3);
+        T circle_radius(0.1);
+        T circle_freq = repeat / (traj_end_time - traj_start_time);
+
+        p_des_ = planner_->circular(d->time, traj_start_time, circle_radius, circle_freq, p_init_);
+        a_des_ = planner_->circularDDot(d->time, traj_start_time, circle_radius, circle_freq);
+        break;
+      }
+      default:
+        p_des_ = p_mes_;
+        a_des_.setZero();
+
+        break;
+      }
+    }
+  }
+  else
+  {
+    p_des_ = p_mes_;
+    a_des_.setZero();
+    b_traj_start_ = false;
+  }
 
   //* control law *//
-  Vec2<T> q_des;
-  q_des << -0.7854, 1.5708;
+  /* task-space control */
+  // Vec2<T> Fc = kp_.cwiseProduct(p_des_ - p_mes_) + kd_.cwiseProduct(-v_mes_);
+  Vec2<T> Fc = Mo * a_des_ + kp_.cwiseProduct(p_des_ - p_mes_) + kd_.cwiseProduct(-v_mes_);
+  tau_des_ = J_t * Fc;
 
-  tau_des_ = kp_.cwiseProduct(q_des - q_mes_) + kd_.cwiseProduct(-dq_mes_);
+  /* joint-space control */
   tau_des_ += tau_g;
 
   //* send command *//
@@ -125,7 +192,7 @@ void ComputedTorqueController<T>::updateImpl(const mjModel * m, mjData * d)
     d->ctrl[i] = tau_des_[i];
   }
 
-  tick_++;
+  iter_++;
 }
 
 /**
@@ -138,6 +205,8 @@ void ComputedTorqueController<T>::getSensorData(const mjModel * m, mjData * d)
   {
     q_mes_(i) = d->sensordata[i];
     dq_mes_(i) = d->sensordata[i + dof_];
+    // q_mes_(i) = d->qpos[i];
+    // dq_mes_(i) = d->qvel[i];
   }
 
   p_mes_(0) = d->sensordata[5];        // y direction
